@@ -1,0 +1,38 @@
+services:
+  postgres_db:
+    image: postgres:13
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      LC_ALL: en_US.UTF-8
+      LANG: en_US.UTF-8
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    restart: unless-stopped
+    ports:
+      - 5435:5432
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    env_file: .env
+    environment:
+      - SQLALCHEMY_DATABASE_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB_NAME}
+      - FLASK_APP=app.py
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    ports:
+      - 5000:5000
+    command: python app.py
+
+volumes:
+  postgres_data:
